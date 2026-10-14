@@ -1,0 +1,13 @@
+# Godot 4
+.godot/
+/android/
+
+# Exportaciones y claves
+*.apk
+*.aab
+*.idsig
+*.keystore
+*.jks
+
+# Fan art / assets con copyright de Avatar: solo locales, nunca al repo
+assets/ip/
