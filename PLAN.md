@@ -3,7 +3,7 @@
 Juego de pool (8-ball) en 2D cenital para Android, con los cuatro elementos de *Avatar: The Last Airbender* como poderes.
 **Proyecto personal: no se publica.** El APK se queda en tus dispositivos (si se lo pasas a otros, eso ya cuenta como distribuirlo).
 
-**Stack:** Godot 4.x (estable más reciente, ≥ 4.3) · GDScript · renderer *Compatibility* · Windows → Android por USB.
+**Stack:** Godot 4.x (estable más reciente, ≥ 4.3) · GDScript · renderer *Compatibility* · Fedora Linux → Android por USB.
 
 **Regla de oro del consejo:** primero que el billar sea divertido con círculos grises. Los poderes y la temática van después.
 
@@ -31,12 +31,14 @@ pool/
 
 ## Fase 0: Entorno (medio día)
 
-- [ ] Instalar Godot 4.x estable (versión estándar, no .NET).
-- [ ] Instalar JDK 17 y el Android SDK (con Android Studio o con las *command-line tools*: `platform-tools`, `build-tools` y `platforms` en las versiones que pide la doc de Godot para tu versión).
-- [ ] En Godot, ir a **Editor → Manage Export Templates → Download**.
-- [ ] En **Editor Settings → Export → Android**, poner las rutas de *Java SDK Path* y *Android SDK Path*. El keystore de debug lo genera Godot.
-- [ ] En el móvil, activar Opciones de desarrollador → Depuración USB.
-- [ ] Crear el proyecto en `D:\pool` con renderer **Compatibility** y *Version Control Metadata* en **None** (el repo ya tiene `.gitignore`).
+**Ya instalado en este equipo (Fedora 44):** Android SDK en `~/Android/Sdk` con `ANDROID_HOME` definido (platform-tools, build-tools 36, platforms 36 y 37, cmdline-tools), `adb` en el PATH y OpenJDK 25. Las reglas udev de systemd ya dan acceso USB a los dispositivos ADB, así que no hace falta `android-udev-rules`.
+
+- [ ] Instalar Godot (versión estándar, no .NET): `sudo dnf install godot`.
+- [ ] En Godot, ir a **Editor → Manage Export Templates → Download and Install**.
+- [ ] En **Editor Settings → Export → Android**, poner *Java SDK Path* = `/usr/lib/jvm/java-25-openjdk` y *Android SDK Path* = `/home/Beiker/Android/Sdk`. El keystore de debug lo genera Godot.
+  - La doc de Godot pide JDK 17, pero Fedora 44 ya no lo trae. La exportación sin Gradle (*Remote Deploy*) solo usa `keytool` y `apksigner`, así que primero se prueba con el 25. Si da error de Java, o si se activa *Use Gradle Build*, instalar Temurin 17 (adoptium.net) y poner esa ruta.
+- [ ] En el móvil, activar Opciones de desarrollador → Depuración USB. Al conectarlo, `adb devices` debe mostrarlo como `device`; si sale `unauthorized`, aceptar el aviso en el móvil.
+- [ ] Crear el proyecto en la raíz del repo (`~/Documentos/GitHub/pool`) con renderer **Compatibility** y *Version Control Metadata* en **None** (el repo ya tiene `.gitignore`).
 - [ ] En **Project Settings**:
   - `display/window/handheld/orientation` = `landscape`
   - `display/window/stretch/mode` = `canvas_items` y `aspect` = `keep`
