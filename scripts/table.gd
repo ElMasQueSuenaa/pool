@@ -118,8 +118,7 @@ func shoot(velocity: Vector2) -> void:
 	first_hit = -1
 	shot_time = 0.0
 	state = State.ROLLING
-	# Velocidad directa y no impulso: se lee al instante (sin un tick en falso de "reposo")
-	# y no depende de la masa (Tierra solo tendrá que subir mass)
+	# Velocidad directa y no impulso: no depende de la masa (Tierra solo tendrá que subir mass)
 	cue_ball.linear_velocity = velocity
 
 

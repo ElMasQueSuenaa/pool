@@ -19,15 +19,15 @@ pool/
 ├─ export_presets.cfg            preset Web
 ├─ .github/workflows/pages.yml   exporta y publica en cada push a main
 ├─ PLAN.md
-├─ scenes/      main.tscn, table.tscn, ball.tscn
+├─ scenes/      main.tscn (la mesa y el HUD), ball.tscn
 ├─ scripts/     ball.gd, table.gd, cue.gd, rules.gd, powers.gd, ai.gd
-├─ tests/       test_rules.gd
+├─ tests/       test_break.gd, test_rules.gd (no se exportan a la web)
 └─ assets/
    ├─ placeholder/   arte y sonidos CC0 (Kenney, freesound CC0)
    └─ ip/            fan art de Avatar: solo local, git lo ignora
 ```
 
-**Capas de colisión:** 1 = bolas, 2 = bandas, 3 = troneras.
+**Capas de colisión:** 1 = bolas, 2 = bandas. Las troneras no usan capa (ver Fase 1).
 
 ---
 
@@ -53,7 +53,7 @@ Cada push a `main` dispara `.github/workflows/pages.yml`: descarga Godot y las p
 El mayor riesgo técnico es si la física 2D de Godot aguanta un billar. Esta fase sirve para averiguarlo **antes** de invertir en lo demás.
 
 - [x] `ball.tscn` + `ball.gd`: un `RigidBody2D` con `CircleShape2D`, dibujado con `draw_circle` (lisas de color, rayadas con anillo blanco). Propiedades:
-  - `continuous_cd = CCD_MODE_CAST_SHAPE` (evita que las bolas rápidas atraviesen las bandas)
+  - **Sin CCD.** Con `CCD_MODE_CAST_SHAPE`, colocar bolas (rack, bola en mano) las dejaba fuera de sitio: el rack se deshacía hasta 73 px antes del saque. Sin CCD queda exacto. A 240 ticks no hace falta: a fuerza máxima una bola avanza 12.5 px por tick y para atravesar una banda de 30 px tendría que saltar unos 54.
   - `lock_rotation = true` y `gravity_scale = 0`
   - `physics_material_override`: `bounce = 0.475`, `friction = 0`. **Godot suma el `bounce` de los dos cuerpos** (con tope 1): bola + bola = 0.95 y bola + banda (0.275) = 0.75. Con 0.95 y 0.75 todos los choques serían perfectamente elásticos.
   - `linear_damp = 1.0` en modo *replace* (ajustar a mano)
@@ -62,22 +62,21 @@ El mayor riesgo técnico es si la física 2D de Godot aguanta un billar. Esta fa
 - [x] Mesa en `main.tscn` + `table.gd` (sin `table.tscn` aparte): paño de 1000×500 y las bandas como rectángulos de un `StaticBody2D` que dejan huecos en las 6 troneras. Medidas y huecos son constantes en `table.gd`.
 - [x] Troneras sin `Area2D`: las bandas solo dejan salir del paño por los huecos, así que **si el centro de una bola sale del paño, ha entrado**. Se registra en el tiro, se oculta, se congela y se le quitan las capas de colisión (congelada seguiría chocando).
 - [x] Rack inicial: triángulo de 15 bolas con la 8 en el centro, y la blanca en la línea de salida. Botón **Reiniciar** para volver a colocarlo.
-- [x] `cue.gd`, el tiro: se pulsa sobre la blanca y se arrastra hacia atrás (tirachinas). La dirección es la opuesta al arrastre y la fuerza va con la distancia (tope `max_drag`). Al soltar se fija `linear_velocity` de la blanca: a diferencia de un impulso se lee al instante (si no, el primer tick parecía "mesa en reposo") y no depende de la masa. Soltar sin salir de la blanca cancela.
+- [x] `cue.gd`, el tiro: se pulsa sobre la blanca y se arrastra hacia atrás (tirachinas). La dirección es la opuesta al arrastre y la fuerza va con la distancia (tope `max_drag`). Al soltar se fija `linear_velocity` de la blanca en vez de aplicar un impulso, para que la velocidad no dependa de la masa. Soltar sin salir de la blanca cancela.
   Solo eventos de ratón, con la posición de cada evento: Godot convierte el toque en ratón, así que funciona igual en PC y en el móvil.
-- [x] Detectar "mesa en reposo": todas las bolas en la mesa con velocidad 0 ⇒ fin del tiro. Si la blanca entró, vuelve a la línea de salida. El HUD muestra cuánto tardó y qué bolas entraron.
+- [x] Detectar "mesa en reposo": todas las bolas en la mesa con velocidad 0 ⇒ fin del tiro y se aplican las reglas (Fase 2).
 
 **Prueba sí/no** (en el navegador del móvil desde GitHub Pages, no solo en el PC):
 
 - [x] 20 saques a fuerza máxima: ninguna bola atraviesa bandas ni otras bolas. Automatizado en PC con `godot --headless --fixed-fps 240 -s tests/test_break.gd`. "Atravesar" es que dos bolas en contacto queden al tick siguiente cada una al otro lado.
-  - CCD evita atravesar las bandas, pero no impide que una bola se meta dentro de otra al chocar. Medido en 100 saques a fuerza máxima:
+  - Al chocar, una bola se mete un poco dentro de otra durante un tick (4 ms) y el motor las separa. Medido en 100 saques a fuerza máxima, sin CCD:
 
-    | Ticks | Ticks con solape > medio diámetro | Cruces reales | Solape máximo |
-    |---|---|---|---|
-    | 120 | 72 | 1 | 21.1 px |
-    | **240** | 3 | 1 | 13.3 px |
-    | 480 | 4 | 0 | 19.7 px |
+    | Ticks | Ticks con una bola dentro de una banda | Cruces entre bolas | Ticks con solape > medio diámetro | Solape máximo |
+    |---|---|---|---|---|
+    | 120 | 18 | 5 | 257 | 23.6 px |
+    | **240** | 0 | 0 | 75 | 13.1 px |
 
-    Los solapes fuertes salen cuando una bola queda encajada entre otras o contra una banda, por eso 480 no mejora. La física va a 240 ticks. Si en el móvil se nota algo raro en los saques, Plan B.
+    La física va a 240 ticks. Si en el móvil se nota algo raro en los saques, Plan B.
 - [x] La mesa queda en reposo en menos de unos 8 s (unos 5 s en la prueba).
 - [ ] Lo mismo en el navegador del móvil, y que 240 ticks no lo hagan ir lento.
 - [ ] Tiros suaves: las bolas ruedan de forma natural y no se quedan "pegadas".
@@ -186,8 +185,8 @@ Online, APK y Play Store, anuncios y compras, roguelike o colección, y 3D. La t
 
 | Riesgo | Respuesta |
 |---|---|
-| Bolas que se atraviesan o un saque inestable | CCD + 240 ticks (medido en la Fase 1). Si no basta, Plan B con física propia (Fase 1) |
-| La física va lenta en el navegador del móvil (la exportación web va en un solo hilo) | Probar la Fase 1 en el móvil desde GitHub Pages. Si no da, bajar a 60 ticks o pasar al Plan B |
+| Bolas que se atraviesan o un saque inestable | 240 ticks sin CCD (medido en la Fase 1). Si no basta, Plan B con física propia (Fase 1) |
+| La física va lenta en el navegador del móvil (la exportación web va en un solo hilo) | Probar la Fase 1 en el móvil desde GitHub Pages. Si no da, Plan B: con menos de 240 ticks las bolas se meten en las bandas y se cruzan |
 | Bolas que nunca se paran | Umbral de parada en `_integrate_forces` |
 | Poderes que rompen el billar | Cargas limitadas y 5 partidas de prueba por elemento |
 | Apuntar con el dedo es impreciso | Tirachinas + ajuste fino (Fase 6) |
