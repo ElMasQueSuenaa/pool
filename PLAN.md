@@ -68,8 +68,16 @@ El mayor riesgo técnico es si la física 2D de Godot aguanta un billar. Esta fa
 
 **Prueba sí/no** (en el navegador del móvil desde GitHub Pages, no solo en el PC):
 
-- [x] 20 saques a fuerza máxima: ninguna bola atraviesa bandas ni otras bolas. Automatizado en PC con `godot --headless --fixed-fps 240 -s tests/test_break.gd`.
-  - CCD no impide que una bola se meta dentro de otra durante un tick. Con 120 ticks una bola llegó a solaparse 20.8 de 24 px con otra; con **240 ticks** el máximo es 11.9 px, solo en el tick del choque. Por eso la física va a 240 ticks.
+- [x] 20 saques a fuerza máxima: ninguna bola atraviesa bandas ni otras bolas. Automatizado en PC con `godot --headless --fixed-fps 240 -s tests/test_break.gd`. "Atravesar" es que dos bolas en contacto queden al tick siguiente cada una al otro lado.
+  - CCD evita atravesar las bandas, pero no impide que una bola se meta dentro de otra al chocar. Medido en 100 saques a fuerza máxima:
+
+    | Ticks | Ticks con solape > medio diámetro | Cruces reales | Solape máximo |
+    |---|---|---|---|
+    | 120 | 72 | 1 | 21.1 px |
+    | **240** | 3 | 1 | 13.3 px |
+    | 480 | 4 | 0 | 19.7 px |
+
+    Los solapes fuertes salen cuando una bola queda encajada entre otras o contra una banda, por eso 480 no mejora. La física va a 240 ticks. Si en el móvil se nota algo raro en los saques, Plan B.
 - [x] La mesa queda en reposo en menos de unos 8 s (unos 5 s en la prueba).
 - [ ] Lo mismo en el navegador del móvil, y que 240 ticks no lo hagan ir lento.
 - [ ] Tiros suaves: las bolas ruedan de forma natural y no se quedan "pegadas".
@@ -89,22 +97,24 @@ Con física propia, los poderes de la Fase 3 son simples modificaciones a ese bu
 
 ## Fase 2: Reglas de 8-ball y dos jugadores en el mismo móvil
 
-- [ ] `rules.gd` es **lógica pura**: `class_name Rules`, `extends RefCounted`, sin nodos, para poder testearla sin abrir el juego.
-  - **Entrada:** el estado de la partida (turno, grupo de cada jugador, bolas restantes) y el resultado del tiro (`first_hit`, `pocketed: Array[int]`, `scratch: bool`).
-  - **Salida:** si hubo falta, si se mantiene el turno, los grupos asignados y el ganador.
-- [ ] Reglas (simplificadas a propósito):
-  - Mesa abierta hasta la primera bola embocada legalmente después del saque; ese jugador se queda con lisas o rayadas.
-  - Sigues tirando si embocas una bola tuya sin cometer falta.
-  - Falta: blanca embocada, no tocar ninguna bola, o tocar primero una bola que no es tuya (en mesa abierta, tocar la 8 primero). Con falta, el rival tiene **bola en mano**.
-  - La 8: si la embocas después de limpiar tu grupo, ganas. Si la embocas antes, o con la blanca dentro en ese tiro, pierdes. Si entra en el saque, se vuelve a colocar el rack.
+- [x] `rules.gd` es **lógica pura**: `class_name Rules`, `extends RefCounted`, sin nodos, para poder testearla sin abrir el juego. Guarda el estado de la partida (turno, grupo de cada jugador, bolas en la mesa, si es el saque) y `apply(first_hit, pocketed)` lo actualiza con el resultado del tiro.
+  - **Entrada:** `first_hit` (primera bola que tocó la blanca, -1 si ninguna) y `pocketed: Array[int]` en orden de entrada. La blanca es el 0, así que no hace falta un `scratch` aparte.
+  - **Salida:** `foul`, `turn` (si no cambia, sigue tirando el mismo), `groups`, `winner`, `rerack` y `message` para el HUD.
+- [x] Reglas (simplificadas a propósito):
+  - Mesa abierta hasta la primera bola embocada legalmente después del saque; ese jugador se queda el grupo de la **primera** bola que entró.
+  - Sigues tirando si embocas una bola tuya sin cometer falta. En el saque, si entra cualquier bola.
+  - Falta: blanca embocada, no tocar ninguna bola, o tocar primero una bola que no es tuya (en mesa abierta, tocar la 8 primero; con tu grupo limpio, hay que tocar la 8). Con falta, el rival tiene **bola en mano**.
+  - La 8: si la embocas después de limpiar tu grupo, ganas. Si la embocas antes (también junto con tu última bola), o con falta en ese tiro, pierdes. Si entra en el saque, se vuelve a colocar el rack y saca el mismo.
   - *Fuera:* cantar tronera, banda tras contacto, regla de 4 bandas en el saque y regla de 3 faltas.
-- [ ] Máquina de estados en `table.gd`: `APUNTANDO → RODANDO → RESOLVIENDO → (BOLA_EN_MANO | APUNTANDO)`.
-- [ ] Bola en mano: arrastrar la blanca y validar que no se solapa con nada usando `PhysicsDirectSpaceState2D.intersect_shape`.
-- [ ] HUD mínimo con `Label`: de quién es el turno, su grupo y los mensajes de falta o victoria.
-- [ ] `tests/test_rules.gd` (`extends SceneTree`) cubre los casos: saque sin bolas, asignación de grupo, falta por blanca, falta por primer contacto, 8 temprana = derrota y 8 final = victoria. Termina con `quit(fallos)`.
+- [x] Máquina de estados en `table.gd`: `AIMING → ROLLING → (BALL_IN_HAND | AIMING | OVER)`. "Resolver" no es un estado: pasa en el mismo tick en que la mesa queda en reposo.
+- [x] Primer contacto con la señal `body_entered` de la blanca (por eso `contact_monitor`).
+- [x] Bola en mano: la blanca sigue al dedo (se ve transparente si no cabe) y se coloca al soltar, si está dentro del paño y `PhysicsDirectSpaceState2D.intersect_shape` no toca nada. Puede ir en cualquier sitio, también en el saque tras falta.
+- [x] HUD mínimo con el `Label` de arriba: de quién es el turno, su grupo y los mensajes de falta o victoria. **Reiniciar** empieza otra partida.
+- [x] `tests/test_rules.gd` (`extends SceneTree`) cubre 15 casos: saque sin bolas, saque con bolas, 8 en el saque, asignación de grupo, falta por blanca, por no tocar nada y por primer contacto, 8 temprana = derrota, 8 final = victoria, 8 con la blanca, entre otros. Termina con `quit(fallos)`.
   ```bash
   godot --headless -s tests/test_rules.gd
   ```
+  Si Godot dice que `Rules` no existe, es que aún no registró la clase: abre el editor una vez o ejecuta `godot --headless --import`.
 
 **Hecho cuando:** dos personas juegan una partida completa en tu móvil y el test de reglas pasa.
 
