@@ -37,12 +37,12 @@ Cada push a `main` dispara `.github/workflows/pages.yml`: descarga Godot y las p
 
 - [x] Instalar Godot (versión estándar, no .NET): `sudo dnf install godot`.
 - [x] Crear el proyecto en la raíz del repo con renderer **Compatibility**.
-- [x] **Project Settings:** `stretch/mode` = `canvas_items`, `aspect` = `keep`, `physics_ticks_per_second` = `120` y `2d/default_gravity` = `0`. La orientación no aplica en el navegador: se gira el móvil.
+- [x] **Project Settings:** `stretch/mode` = `canvas_items`, `aspect` = `keep`, `physics_ticks_per_second` = `240` (ver Fase 1) y `2d/default_gravity` = `0`. La orientación no aplica en el navegador: se gira el móvil.
 - [x] Preset de exportación **Web** sin hilos (`variant/thread_support = false`), porque GitHub Pages no envía las cabeceras COOP/COEP que necesitan los hilos.
 - [x] `scenes/main.tscn`: un `Label` "hola" como escena principal.
-- [ ] Hacer público el repo (GitHub Pages gratis solo publica repos públicos).
-- [ ] En GitHub, **Settings → Pages → Source** = **GitHub Actions**.
-- [ ] Lanzar el workflow: push a `main` o **Actions → Publicar en GitHub Pages → Run workflow**.
+- [x] Hacer público el repo (GitHub Pages gratis solo publica repos públicos).
+- [x] En GitHub, **Settings → Pages → Source** = **GitHub Actions**.
+- [x] Lanzar el workflow: push a `main` o **Actions → Publicar en GitHub Pages → Run workflow**.
 
 **Hecho cuando:** la escena "hola" se abre en el navegador del móvil en `https://elmasquesuenaa.github.io/pool/`.
 
@@ -52,24 +52,26 @@ Cada push a `main` dispara `.github/workflows/pages.yml`: descarga Godot y las p
 
 El mayor riesgo técnico es si la física 2D de Godot aguanta un billar. Esta fase sirve para averiguarlo **antes** de invertir en lo demás.
 
-- [ ] `ball.tscn`: un `RigidBody2D` con `CircleShape2D` y un sprite de círculo de color. Propiedades:
-  - `continuous_cd = CCD_MODE_CAST_SHAPE` (evita que las bolas rápidas atraviesen cosas)
+- [x] `ball.tscn` + `ball.gd`: un `RigidBody2D` con `CircleShape2D`, dibujado con `draw_circle` (lisas de color, rayadas con anillo blanco). Propiedades:
+  - `continuous_cd = CCD_MODE_CAST_SHAPE` (evita que las bolas rápidas atraviesen las bandas)
   - `lock_rotation = true` y `gravity_scale = 0`
-  - `physics_material_override`: `bounce ≈ 0.95`, `friction = 0`
-  - `linear_damp ≈ 1.0` (ajustar a mano)
+  - `physics_material_override`: `bounce = 0.475`, `friction = 0`. **Godot suma el `bounce` de los dos cuerpos** (con tope 1): bola + bola = 0.95 y bola + banda (0.275) = 0.75. Con 0.95 y 0.75 todos los choques serían perfectamente elásticos.
+  - `linear_damp = 1.0` en modo *replace* (ajustar a mano)
   - `contact_monitor = true` y `max_contacts_reported = 4` (para saber a qué bola se golpeó primero)
-- [ ] Umbral de parada: en `_integrate_forces`, si `state.linear_velocity.length() < 5`, poner la velocidad a cero. Sin esto las bolas se arrastran eternamente.
-- [ ] `table.tscn`: bandas como `StaticBody2D` (segmentos o polígonos) con `bounce ≈ 0.75`, y 6 troneras como `Area2D` con un círculo pequeño en la boca.
-- [ ] Al entrar una bola en una tronera (`body_entered`), se registra en el tiro actual y se oculta y congela (`freeze = true`).
-- [ ] Rack inicial: triángulo de 15 bolas y bola blanca en la línea de salida.
-- [ ] `cue.gd`, el tiro: arrastrar desde la blanca hacia atrás (tirachinas). La dirección es la opuesta al arrastre y la fuerza va con la distancia (con tope). Al soltar, `apply_central_impulse(dir * fuerza)`.
-  Usar solo eventos de ratón: Godot convierte el toque en ratón por defecto, así que funciona igual en PC y en el móvil.
-- [ ] Detectar "mesa en reposo": todas las bolas con velocidad 0 ⇒ fin del tiro.
+- [x] Umbral de parada: en `_integrate_forces`, si `state.linear_velocity.length() < 5`, poner la velocidad a cero. Sin esto las bolas se arrastran eternamente.
+- [x] Mesa en `main.tscn` + `table.gd` (sin `table.tscn` aparte): paño de 1000×500 y las bandas como rectángulos de un `StaticBody2D` que dejan huecos en las 6 troneras. Medidas y huecos son constantes en `table.gd`.
+- [x] Troneras sin `Area2D`: las bandas solo dejan salir del paño por los huecos, así que **si el centro de una bola sale del paño, ha entrado**. Se registra en el tiro, se oculta, se congela y se le quitan las capas de colisión (congelada seguiría chocando).
+- [x] Rack inicial: triángulo de 15 bolas con la 8 en el centro, y la blanca en la línea de salida. Botón **Reiniciar** para volver a colocarlo.
+- [x] `cue.gd`, el tiro: se pulsa sobre la blanca y se arrastra hacia atrás (tirachinas). La dirección es la opuesta al arrastre y la fuerza va con la distancia (tope `max_drag`). Al soltar se fija `linear_velocity` de la blanca: a diferencia de un impulso se lee al instante (si no, el primer tick parecía "mesa en reposo") y no depende de la masa. Soltar sin salir de la blanca cancela.
+  Solo eventos de ratón, con la posición de cada evento: Godot convierte el toque en ratón, así que funciona igual en PC y en el móvil.
+- [x] Detectar "mesa en reposo": todas las bolas en la mesa con velocidad 0 ⇒ fin del tiro. Si la blanca entró, vuelve a la línea de salida. El HUD muestra cuánto tardó y qué bolas entraron.
 
 **Prueba sí/no** (en el navegador del móvil desde GitHub Pages, no solo en el PC):
 
-- [ ] 20 saques a fuerza máxima: ninguna bola atraviesa bandas ni otras bolas.
-- [ ] La mesa queda en reposo en menos de unos 8 s.
+- [x] 20 saques a fuerza máxima: ninguna bola atraviesa bandas ni otras bolas. Automatizado en PC con `godot --headless --fixed-fps 240 -s tests/test_break.gd`.
+  - CCD no impide que una bola se meta dentro de otra durante un tick. Con 120 ticks una bola llegó a solaparse 20.8 de 24 px con otra; con **240 ticks** el máximo es 11.9 px, solo en el tick del choque. Por eso la física va a 240 ticks.
+- [x] La mesa queda en reposo en menos de unos 8 s (unos 5 s en la prueba).
+- [ ] Lo mismo en el navegador del móvil, y que 240 ticks no lo hagan ir lento.
 - [ ] Tiros suaves: las bolas ruedan de forma natural y no se quedan "pegadas".
 
 **Si falla → Plan B, física propia** (unas 150 líneas, en `table.gd`):
@@ -116,7 +118,7 @@ Todo vive en `powers.gd`, un `match` por elemento, separado del arte.
 
 | Elemento | Efecto | Implementación |
 |---|---|---|
-| 🪨 **Tierra** | Blanca pesada que atraviesa racimos y casi no se desvía | `mass = 3` durante el tiro; el impulso se multiplica por la masa para que salga a la misma velocidad |
+| 🪨 **Tierra** | Blanca pesada que atraviesa racimos y casi no se desvía | `mass = 3` durante el tiro; como el tiro fija la velocidad (Fase 1), sale igual de rápida sin más cambios |
 | 💧 **Agua** | La blanca hace curva | El jugador elige el lado con un toggle; se aplica `constant_force` perpendicular a la dirección durante unos 0.5 s y luego se pone a `Vector2.ZERO` |
 | 🔥 **Fuego** | Explosión al primer impacto | En el primer `body_entered` de la blanca con una bola, impulso extra a esa bola en la dirección blanca → bola (×1.5) |
 | 🌪️ **Aire** | La blanca salta por encima de bolas | Se quita la capa 1 del `collision_mask` durante unos 0.35 s; se vuelve a activar solo cuando no se solapa con ninguna bola (`intersect_shape`) |
@@ -174,7 +176,7 @@ Online, APK y Play Store, anuncios y compras, roguelike o colección, y 3D. La t
 
 | Riesgo | Respuesta |
 |---|---|
-| Bolas que se atraviesan o un saque inestable | CCD + 120 ticks. Si no basta, Plan B con física propia (Fase 1) |
+| Bolas que se atraviesan o un saque inestable | CCD + 240 ticks (medido en la Fase 1). Si no basta, Plan B con física propia (Fase 1) |
 | La física va lenta en el navegador del móvil (la exportación web va en un solo hilo) | Probar la Fase 1 en el móvil desde GitHub Pages. Si no da, bajar a 60 ticks o pasar al Plan B |
 | Bolas que nunca se paran | Umbral de parada en `_integrate_forces` |
 | Poderes que rompen el billar | Cargas limitadas y 5 partidas de prueba por elemento |
