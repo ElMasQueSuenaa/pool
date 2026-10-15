@@ -11,3 +11,6 @@
 
 # Fan art / assets con copyright de Avatar: solo locales, nunca al repo
 assets/ip/
+
+# Exportación web local (la publica GitHub Actions)
+build/
