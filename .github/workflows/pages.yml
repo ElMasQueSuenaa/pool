@@ -32,8 +32,9 @@ jobs:
           url=https://github.com/godotengine/godot-builds/releases/download/$GODOT-stable
           wget -q $url/Godot_v$GODOT-stable_linux.x86_64.zip $url/Godot_v$GODOT-stable_export_templates.tpz
           unzip -q Godot_v$GODOT-stable_linux.x86_64.zip
-          unzip -q -j Godot_v$GODOT-stable_export_templates.tpz 'templates/web_nothreads_*' \
-            -d ~/.local/share/godot/export_templates/$GODOT.stable
+          tpl=~/.local/share/godot/export_templates/$GODOT.stable
+          mkdir -p $tpl
+          unzip -q -j Godot_v$GODOT-stable_export_templates.tpz 'templates/web_nothreads_*' -d $tpl
 
       - name: Exportar a Web
         run: |
