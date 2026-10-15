@@ -1,9 +1,9 @@
 # Pool Elemental: plan de trabajo
 
-Juego de pool (8-ball) en 2D cenital para Android, con los cuatro elementos de *Avatar: The Last Airbender* como poderes.
-**Proyecto personal: no se publica.** El APK se queda en tus dispositivos (si se lo pasas a otros, eso ya cuenta como distribuirlo).
+Juego de pool (8-ball) en 2D cenital para el navegador (PC y móvil), con los cuatro elementos de *Avatar: The Last Airbender* como poderes.
+**Se publica en GitHub Pages** (`https://elmasquesuenaa.github.io/pool/`), así que el repo y la versión web son públicos: solo llevan arte propio o CC0. El fan art de Avatar se queda en `assets/ip/` (git lo ignora) y solo se ve al jugar en local con F5.
 
-**Stack:** Godot 4.x (estable más reciente, ≥ 4.3) · GDScript · renderer *Compatibility* · Fedora Linux → Android por USB.
+**Stack:** Godot 4.x (estable más reciente, ≥ 4.3) · GDScript · renderer *Compatibility* · Fedora Linux → Web (GitHub Pages, exportado por GitHub Actions).
 
 **Regla de oro del consejo:** primero que el billar sea divertido con círculos grises. Los poderes y la temática van después.
 
@@ -16,6 +16,8 @@ Las carpetas se crean a medida que hagan falta, no antes.
 ```
 pool/
 ├─ project.godot
+├─ export_presets.cfg            preset Web
+├─ .github/workflows/pages.yml   exporta y publica en cada push a main
 ├─ PLAN.md
 ├─ scenes/      main.tscn, table.tscn, ball.tscn
 ├─ scripts/     ball.gd, table.gd, cue.gd, rules.gd, powers.gd, ai.gd
@@ -31,22 +33,18 @@ pool/
 
 ## Fase 0: Entorno (medio día)
 
-**Ya instalado en este equipo (Fedora 44):** Android SDK en `~/Android/Sdk` con `ANDROID_HOME` definido (platform-tools, build-tools 36, platforms 36 y 37, cmdline-tools), `adb` en el PATH y OpenJDK 25. Las reglas udev de systemd ya dan acceso USB a los dispositivos ADB, así que no hace falta `android-udev-rules`.
+Cada push a `main` dispara `.github/workflows/pages.yml`: descarga Godot y las plantillas oficiales, exporta el preset **Web** y lo publica en GitHub Pages. En local no hacen falta plantillas de exportación: se juega con F5.
 
-- [ ] Instalar Godot (versión estándar, no .NET): `sudo dnf install godot`.
-- [ ] En Godot, ir a **Editor → Manage Export Templates → Download and Install**.
-- [ ] En **Editor Settings → Export → Android**, poner *Java SDK Path* = `/usr/lib/jvm/java-25-openjdk` y *Android SDK Path* = `/home/Beiker/Android/Sdk`. El keystore de debug lo genera Godot.
-  - La doc de Godot pide JDK 17, pero Fedora 44 ya no lo trae. La exportación sin Gradle (*Remote Deploy*) solo usa `keytool` y `apksigner`, así que primero se prueba con el 25. Si da error de Java, o si se activa *Use Gradle Build*, instalar Temurin 17 (adoptium.net) y poner esa ruta.
-- [ ] En el móvil, activar Opciones de desarrollador → Depuración USB. Al conectarlo, `adb devices` debe mostrarlo como `device`; si sale `unauthorized`, aceptar el aviso en el móvil.
-- [ ] Crear el proyecto en la raíz del repo (`~/Documentos/GitHub/pool`) con renderer **Compatibility** y *Version Control Metadata* en **None** (el repo ya tiene `.gitignore`).
-- [ ] En **Project Settings**:
-  - `display/window/handheld/orientation` = `landscape`
-  - `display/window/stretch/mode` = `canvas_items` y `aspect` = `keep`
-  - `physics/common/physics_ticks_per_second` = `120`
-  - `physics/2d/default_gravity` = `0`
-- [ ] Añadir el preset de exportación Android y probar con una escena vacía usando el botón *Remote Deploy* (arriba a la derecha).
+- [x] Instalar Godot (versión estándar, no .NET): `sudo dnf install godot`.
+- [x] Crear el proyecto en la raíz del repo con renderer **Compatibility**.
+- [x] **Project Settings:** `stretch/mode` = `canvas_items`, `aspect` = `keep`, `physics_ticks_per_second` = `120` y `2d/default_gravity` = `0`. La orientación no aplica en el navegador: se gira el móvil.
+- [x] Preset de exportación **Web** sin hilos (`variant/thread_support = false`), porque GitHub Pages no envía las cabeceras COOP/COEP que necesitan los hilos.
+- [x] `scenes/main.tscn`: un `Label` "hola" como escena principal.
+- [ ] Hacer público el repo (GitHub Pages gratis solo publica repos públicos).
+- [ ] En GitHub, **Settings → Pages → Source** = **GitHub Actions**.
+- [ ] Lanzar el workflow: push a `main` o **Actions → Publicar en GitHub Pages → Run workflow**.
 
-**Hecho cuando:** una escena con un `Label` "hola" se abre en tu móvil con un clic.
+**Hecho cuando:** la escena "hola" se abre en el navegador del móvil en `https://elmasquesuenaa.github.io/pool/`.
 
 ---
 
@@ -68,7 +66,7 @@ El mayor riesgo técnico es si la física 2D de Godot aguanta un billar. Esta fa
   Usar solo eventos de ratón: Godot convierte el toque en ratón por defecto, así que funciona igual en PC y en el móvil.
 - [ ] Detectar "mesa en reposo": todas las bolas con velocidad 0 ⇒ fin del tiro.
 
-**Prueba sí/no** (en el móvil, no solo en el PC):
+**Prueba sí/no** (en el navegador del móvil desde GitHub Pages, no solo en el PC):
 
 - [ ] 20 saques a fuerza máxima: ninguna bola atraviesa bandas ni otras bolas.
 - [ ] La mesa queda en reposo en menos de unos 8 s.
@@ -133,12 +131,12 @@ Todo vive en `powers.gd`, un `match` por elemento, separado del arte.
 
 ## Fase 4: Temática Avatar (solo uso personal)
 
-- [ ] Placeholders CC0 primero (Kenney: kenney.nl). El fan art y los assets de la serie van **solo** a `assets/ip/`, que git ignora. Así, aunque el repo acabe en GitHub, no se sube nada con copyright.
-- [ ] Selector de nación al empezar: Agua (Katara), Tierra (Toph), Fuego (Zuko), Aire (Aang), con retrato y color.
+- [ ] Placeholders CC0 primero (Kenney: kenney.nl). El fan art y los assets de la serie van **solo** a `assets/ip/`, que git ignora. Así ni el repo ni la versión web llevan nada con copyright.
+- [ ] Selector de nación al empezar: Agua, Tierra, Fuego y Aire, con color. Los retratos y nombres de personajes (Katara, Toph, Zuko, Aang) se cargan solo si existen en `assets/ip/`, así que solo salen en local.
 - [ ] Mesa y fondo con el estilo de la nación (paño, marco).
 - [ ] Efectos de cada poder con `CPUParticles2D` (compatible con el renderer Compatibility): estela de agua, polvo de tierra, chispas de fuego, ráfaga de aire.
 - [ ] Sonidos con `AudioStreamPlayer2D`: choque, banda, tronera y uno por poder.
-- [ ] Vibración al embocar con `Input.vibrate_handheld(30)`; requiere el permiso `VIBRATE` en el preset de exportación.
+- [ ] Vibración al embocar con `Input.vibrate_handheld(30)`. En el navegador funciona en Android; en iPhone no hace nada.
 
 **Hecho cuando:** la partida se ve y suena como un duelo entre naciones.
 
@@ -170,13 +168,14 @@ Usa el método de la "bola fantasma", en `ai.gd`:
 
 ## Fuera de alcance
 
-Online, publicación en Play Store, anuncios y compras, roguelike o colección, y 3D. Si algún día quieres publicar, se cambia la temática Avatar por un mundo propio. El código no cambia, porque el arte está separado de la lógica.
+Online, APK y Play Store, anuncios y compras, roguelike o colección, y 3D. La temática Avatar solo existe en local; la versión publicada usa arte propio o CC0. El código es el mismo, porque el arte está separado de la lógica.
 
 ## Riesgos y respuesta
 
 | Riesgo | Respuesta |
 |---|---|
 | Bolas que se atraviesan o un saque inestable | CCD + 120 ticks. Si no basta, Plan B con física propia (Fase 1) |
+| La física va lenta en el navegador del móvil (la exportación web va en un solo hilo) | Probar la Fase 1 en el móvil desde GitHub Pages. Si no da, bajar a 60 ticks o pasar al Plan B |
 | Bolas que nunca se paran | Umbral de parada en `_integrate_forces` |
 | Poderes que rompen el billar | Cargas limitadas y 5 partidas de prueba por elemento |
 | Apuntar con el dedo es impreciso | Tirachinas + ajuste fino (Fase 6) |

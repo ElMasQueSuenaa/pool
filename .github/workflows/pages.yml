@@ -1,0 +1,49 @@
+name: Publicar en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  GODOT: 4.7.2
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # ponytail: descarga ~1 GB de plantillas en cada push; cachear con actions/cache si se hace lento
+      - name: Instalar Godot y plantillas Web
+        run: |
+          url=https://github.com/godotengine/godot-builds/releases/download/$GODOT-stable
+          wget -q $url/Godot_v$GODOT-stable_linux.x86_64.zip $url/Godot_v$GODOT-stable_export_templates.tpz
+          unzip -q Godot_v$GODOT-stable_linux.x86_64.zip
+          unzip -q -j Godot_v$GODOT-stable_export_templates.tpz 'templates/web_nothreads_*' \
+            -d ~/.local/share/godot/export_templates/$GODOT.stable
+
+      - name: Exportar a Web
+        run: |
+          mkdir -p build/web
+          ./Godot_v$GODOT-stable_linux.x86_64 --headless --import
+          ./Godot_v$GODOT-stable_linux.x86_64 --headless --export-release Web build/web/index.html
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: build/web
+
+      - id: deployment
+        uses: actions/deploy-pages@v5
