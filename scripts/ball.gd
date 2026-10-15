@@ -33,10 +33,13 @@ func pocket() -> void:
 
 
 func place(pos: Vector2) -> void:
-	freeze = true
+	freeze = false
 	position = pos
+	# Mover solo el nodo no siempre llega al motor de física, y en la siguiente sincronización
+	# la bola vuelve a la posición vieja: se le da la posición directamente al motor
+	PhysicsServer2D.body_set_state(get_rid(), PhysicsServer2D.BODY_STATE_TRANSFORM, global_transform)
+	PhysicsServer2D.body_set_state(get_rid(), PhysicsServer2D.BODY_STATE_LINEAR_VELOCITY, Vector2.ZERO)
 	linear_velocity = Vector2.ZERO
 	collision_layer = 1
 	collision_mask = 3  # bolas y bandas
 	show()
-	freeze = false

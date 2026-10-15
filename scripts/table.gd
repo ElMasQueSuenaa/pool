@@ -90,6 +90,9 @@ func _physics_process(delta: float) -> void:
 		state = State.OVER
 	elif rules.foul:
 		state = State.BALL_IN_HAND
+		# La blanca transparente empieza donde estaba la blanca, o en la línea de salida si entró
+		$Cue.pointer = cue_ball.position if cue_ball.visible else HEAD_SPOT
+		$Cue.queue_redraw()
 		cue_ball.pocket()  # pasa a la mano del rival
 	else:
 		state = State.AIMING
@@ -136,6 +139,7 @@ func can_place(pos: Vector2) -> bool:
 func place_cue_ball(pos: Vector2) -> void:
 	cue_ball.place(pos)
 	state = State.AIMING
+	rules.message = ""
 	_update_hud()
 
 

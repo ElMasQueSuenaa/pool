@@ -4,6 +4,8 @@ extends Node2D
 ## La dirección es la opuesta al arrastre y la fuerza va con la distancia.
 ## Con bola en mano, la blanca sigue al dedo y se coloca al soltar si cabe.
 ## Solo eventos de ratón: Godot convierte el toque en ratón, así que sirve en PC y móvil.
+## _input y no _unhandled_input: si se suelta encima del botón Reiniciar, el botón se queda
+## el evento y el tiro nunca terminaría. El botón no se activa porque no se pulsó sobre él.
 
 @export var max_drag := 150.0
 @export var max_speed := 3000.0
@@ -14,7 +16,7 @@ var pointer := Vector2.ZERO  # último punto del ratón o el dedo, en coordenada
 @onready var table: Table = get_parent()
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if not event is InputEventMouse:
 		return
 	pointer = make_input_local(event).position

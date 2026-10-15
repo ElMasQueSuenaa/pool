@@ -33,7 +33,7 @@ pool/
 
 ## Fase 0: Entorno (medio día)
 
-Cada push a `main` dispara `.github/workflows/pages.yml`: descarga Godot y las plantillas oficiales, exporta el preset **Web** y lo publica en GitHub Pages. En local no hacen falta plantillas de exportación: se juega con F5.
+Cada push a `main` dispara `.github/workflows/pages.yml`: descarga Godot y las plantillas oficiales, pasa las pruebas de `tests/` (si alguna falla, no se publica), exporta el preset **Web** y lo publica en GitHub Pages. En local no hacen falta plantillas de exportación: se juega con F5.
 
 - [x] Instalar Godot (versión estándar, no .NET): `sudo dnf install godot`.
 - [x] Crear el proyecto en la raíz del repo con renderer **Compatibility**.
@@ -53,7 +53,7 @@ Cada push a `main` dispara `.github/workflows/pages.yml`: descarga Godot y las p
 El mayor riesgo técnico es si la física 2D de Godot aguanta un billar. Esta fase sirve para averiguarlo **antes** de invertir en lo demás.
 
 - [x] `ball.tscn` + `ball.gd`: un `RigidBody2D` con `CircleShape2D`, dibujado con `draw_circle` (lisas de color, rayadas con anillo blanco). Propiedades:
-  - **Sin CCD.** Con `CCD_MODE_CAST_SHAPE`, colocar bolas (rack, bola en mano) las dejaba fuera de sitio: el rack se deshacía hasta 73 px antes del saque. Sin CCD queda exacto. A 240 ticks no hace falta: a fuerza máxima una bola avanza 12.5 px por tick y para atravesar una banda de 30 px tendría que saltar unos 54.
+  - **Sin CCD:** a 240 ticks no cambia nada (100 saques dan exactamente lo mismo con y sin él). A fuerza máxima una bola avanza 12.5 px por tick, menos que su tamaño, y para atravesar una banda de 30 px tendría que saltar unos 54.
   - `lock_rotation = true` y `gravity_scale = 0`
   - `physics_material_override`: `bounce = 0.475`, `friction = 0`. **Godot suma el `bounce` de los dos cuerpos** (con tope 1): bola + bola = 0.95 y bola + banda (0.275) = 0.75. Con 0.95 y 0.75 todos los choques serían perfectamente elásticos.
   - `linear_damp = 1.0` en modo *replace* (ajustar a mano)
@@ -62,14 +62,15 @@ El mayor riesgo técnico es si la física 2D de Godot aguanta un billar. Esta fa
 - [x] Mesa en `main.tscn` + `table.gd` (sin `table.tscn` aparte): paño de 1000×500 y las bandas como rectángulos de un `StaticBody2D` que dejan huecos en las 6 troneras. Medidas y huecos son constantes en `table.gd`.
 - [x] Troneras sin `Area2D`: las bandas solo dejan salir del paño por los huecos, así que **si el centro de una bola sale del paño, ha entrado**. Se registra en el tiro, se oculta, se congela y se le quitan las capas de colisión (congelada seguiría chocando).
 - [x] Rack inicial: triángulo de 15 bolas con la 8 en el centro, y la blanca en la línea de salida. Botón **Reiniciar** para volver a colocarlo.
+  Para colocar una bola (rack, bola en mano), `place()` le da la posición directamente al motor con `PhysicsServer2D.body_set_state`. Moviendo solo el nodo (aunque sea congelándolo antes), a veces la bola volvía a su sitio anterior en el tick siguiente y el rack se deshacía hasta 73 px.
 - [x] `cue.gd`, el tiro: se pulsa sobre la blanca y se arrastra hacia atrás (tirachinas). La dirección es la opuesta al arrastre y la fuerza va con la distancia (tope `max_drag`). Al soltar se fija `linear_velocity` de la blanca en vez de aplicar un impulso, para que la velocidad no dependa de la masa. Soltar sin salir de la blanca cancela.
-  Solo eventos de ratón, con la posición de cada evento: Godot convierte el toque en ratón, así que funciona igual en PC y en el móvil.
+  Solo eventos de ratón, con la posición de cada evento: Godot convierte el toque en ratón, así que funciona igual en PC y en el móvil. Con `_input` y no `_unhandled_input`: si se suelta encima del botón **Reiniciar**, el botón se quedaba el evento y la línea de apuntado no desaparecía.
 - [x] Detectar "mesa en reposo": todas las bolas en la mesa con velocidad 0 ⇒ fin del tiro y se aplican las reglas (Fase 2).
 
 **Prueba sí/no** (en el navegador del móvil desde GitHub Pages, no solo en el PC):
 
 - [x] 20 saques a fuerza máxima: ninguna bola atraviesa bandas ni otras bolas. Automatizado en PC con `godot --headless --fixed-fps 240 -s tests/test_break.gd`. "Atravesar" es que dos bolas en contacto queden al tick siguiente cada una al otro lado.
-  - Al chocar, una bola se mete un poco dentro de otra durante un tick (4 ms) y el motor las separa. Medido en 100 saques a fuerza máxima, sin CCD:
+  - Al chocar, una bola se mete un poco dentro de otra durante un tick (4 ms) y el motor las separa. Medido en 100 saques a fuerza máxima:
 
     | Ticks | Ticks con una bola dentro de una banda | Cruces entre bolas | Ticks con solape > medio diámetro | Solape máximo |
     |---|---|---|---|---|
@@ -107,8 +108,8 @@ Con física propia, los poderes de la Fase 3 son simples modificaciones a ese bu
   - *Fuera:* cantar tronera, banda tras contacto, regla de 4 bandas en el saque y regla de 3 faltas.
 - [x] Máquina de estados en `table.gd`: `AIMING → ROLLING → (BALL_IN_HAND | AIMING | OVER)`. "Resolver" no es un estado: pasa en el mismo tick en que la mesa queda en reposo.
 - [x] Primer contacto con la señal `body_entered` de la blanca (por eso `contact_monitor`).
-- [x] Bola en mano: la blanca sigue al dedo (se ve transparente si no cabe) y se coloca al soltar, si está dentro del paño y `PhysicsDirectSpaceState2D.intersect_shape` no toca nada. Puede ir en cualquier sitio, también en el saque tras falta.
-- [x] HUD mínimo con el `Label` de arriba: de quién es el turno, su grupo y los mensajes de falta o victoria. **Reiniciar** empieza otra partida.
+- [x] Bola en mano: una blanca transparente aparece en cuanto hay falta (donde estaba la blanca, o en la línea de salida si entró), sigue al dedo (más transparente si no cabe) y se coloca al soltar, si está dentro del paño y `PhysicsDirectSpaceState2D.intersect_shape` no toca nada. Puede ir en cualquier sitio, también en el saque tras falta.
+- [x] HUD mínimo con el `Label` de arriba: de quién es el turno, su grupo y los mensajes de falta o victoria. El mensaje de falta se borra al colocar la blanca. **Reiniciar** empieza otra partida.
 - [x] `tests/test_rules.gd` (`extends SceneTree`) cubre 15 casos: saque sin bolas, saque con bolas, 8 en el saque, asignación de grupo, falta por blanca, por no tocar nada y por primer contacto, 8 temprana = derrota, 8 final = victoria, 8 con la blanca, entre otros. Termina con `quit(fallos)`.
   ```bash
   godot --headless -s tests/test_rules.gd

@@ -36,10 +36,17 @@ jobs:
           mkdir -p $tpl
           unzip -q -j Godot_v$GODOT-stable_export_templates.tpz 'templates/web_nothreads_*' -d $tpl
 
+      # Si una prueba falla, no se publica. timeout: un script de prueba que falla a medias
+      # no llega a quit() y Godot se quedaría abierto para siempre
+      - name: Pruebas
+        run: |
+          ./Godot_v$GODOT-stable_linux.x86_64 --headless --import
+          timeout 120 ./Godot_v$GODOT-stable_linux.x86_64 --headless -s tests/test_rules.gd
+          timeout 600 ./Godot_v$GODOT-stable_linux.x86_64 --headless --fixed-fps 240 -s tests/test_break.gd
+
       - name: Exportar a Web
         run: |
           mkdir -p build/web
-          ./Godot_v$GODOT-stable_linux.x86_64 --headless --import
           ./Godot_v$GODOT-stable_linux.x86_64 --headless --export-release Web build/web/index.html
 
       - uses: actions/upload-pages-artifact@v5
