@@ -42,6 +42,7 @@ jobs:
         run: |
           ./Godot_v$GODOT-stable_linux.x86_64 --headless --import
           timeout 120 ./Godot_v$GODOT-stable_linux.x86_64 --headless -s tests/test_rules.gd
+          timeout 120 ./Godot_v$GODOT-stable_linux.x86_64 --headless --fixed-fps 240 -s tests/test_powers.gd
           timeout 600 ./Godot_v$GODOT-stable_linux.x86_64 --headless --fixed-fps 240 -s tests/test_break.gd
 
       - name: Exportar a Web

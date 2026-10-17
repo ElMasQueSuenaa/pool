@@ -21,6 +21,35 @@ offset_bottom = 34.0
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 4
 
+[node name="Poder" type="Button" parent="HUD"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -336.0
+offset_top = 6.0
+offset_right = -120.0
+offset_bottom = 38.0
+grow_horizontal = 0
+theme_override_colors/font_pressed_color = Color(1, 0.8, 0.4, 1)
+theme_override_colors/font_hover_pressed_color = Color(1, 0.8, 0.4, 1)
+toggle_mode = true
+
+[node name="Poderes" type="Label" parent="HUD"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -300.0
+offset_top = -32.0
+offset_right = 300.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+horizontal_alignment = 1
+
 [node name="Reiniciar" type="Button" parent="HUD"]
 anchors_preset = 1
 anchor_left = 1.0

@@ -1,7 +1,7 @@
 class_name Table
 extends Node2D
 
-## Mesa: bandas, troneras, rack, turnos y bola en mano.
+## Mesa: bandas, troneras, rack, turnos, bola en mano y poderes.
 ## Estados: AIMING → ROLLING → (al quedar en reposo se aplican las reglas) → BALL_IN_HAND | AIMING | OVER
 ## El paño va de (0, 0) a (W, H); las bandas quedan fuera y dejan huecos en las troneras.
 
@@ -39,6 +39,7 @@ enum State { AIMING, ROLLING, BALL_IN_HAND, OVER }
 var balls: Array[Ball] = []  # balls[n] es la bola número n
 var cue_ball: Ball
 var rules := Rules.new()
+var powers := Powers.new()
 var state := State.AIMING
 var pocketed: Array[int] = []
 var first_hit := -1
@@ -71,6 +72,7 @@ func _ready() -> void:
 	cue_ball = balls[0]
 	cue_ball.body_entered.connect(_on_cue_ball_hit)
 	$HUD/Reiniciar.pressed.connect(new_game)
+	$HUD/Poder.pressed.connect(_on_power_pressed)
 	new_game()
 
 
@@ -184,7 +186,11 @@ func _physics_process(delta: float) -> void:
 	for b in balls:
 		if b.visible and b.linear_velocity != Vector2.ZERO:
 			return
+	powers.end_shot(cue_ball)
+	var shooter := rules.turn
 	rules.apply(first_hit, pocketed)
+	if rules.turn != shooter:
+		powers.start_turn(rules.turn)
 	if rules.rerack:
 		rack()
 	elif rules.winner >= 0:
@@ -202,6 +208,8 @@ func _physics_process(delta: float) -> void:
 
 func new_game() -> void:
 	rules = Rules.new()
+	powers.end_shot(cue_ball)  # por si se reinicia con un poder en marcha
+	powers = Powers.new()
 	rack()
 	_update_hud()
 
@@ -222,8 +230,10 @@ func shoot(velocity: Vector2) -> void:
 	first_hit = -1
 	shot_time = 0.0
 	state = State.ROLLING
-	# Velocidad directa y no impulso: no depende de la masa (Tierra solo tendrá que subir mass)
+	powers.start_shot(rules.turn, cue_ball)
+	# Velocidad directa y no impulso: no depende de la masa, así que Tierra solo sube mass
 	cue_ball.linear_velocity = velocity
+	_update_hud()
 
 
 ## ¿Cabe la blanca aquí? Dentro del paño y sin tocar bolas ni bandas.
@@ -244,6 +254,12 @@ func place_cue_ball(pos: Vector2) -> void:
 	_update_hud()
 
 
+func _on_power_pressed() -> void:
+	if state == State.AIMING:
+		powers.toggle(rules.turn)
+	_update_hud()
+
+
 func _on_cue_ball_hit(body: Node) -> void:
 	if state == State.ROLLING and first_hit < 0 and body is Ball:
 		first_hit = body.number
@@ -260,3 +276,22 @@ func _update_hud() -> void:
 	if rules.message:
 		text += "\n" + rules.message
 	$HUD/Info.text = text
+
+	# Botón del jugador del turno, y abajo la nación y la carga de los dos
+	var p := rules.turn
+	var button: Button = $HUD/Poder
+	var nation: String = Powers.NAMES[powers.nations[p]]
+	if powers.armed:
+		button.text = "Poder: %s (activo)" % nation
+	elif powers.is_ready(p):
+		button.text = "Poder: " + nation
+	else:
+		button.text = "Poder: " + _charge(p)
+	button.set_pressed_no_signal(powers.armed)
+	button.disabled = state != State.AIMING or not powers.is_ready(p)
+	$HUD/Poderes.text = "   ·   ".join([0, 1].map(func(i): return "Jugador %d: %s (%s)" % [i + 1, Powers.NAMES[powers.nations[i]], _charge(i)]))
+
+
+func _charge(player: int) -> String:
+	var n: int = powers.wait[player]
+	return "carga lista" if n == 0 else "recarga en %d turno%s" % [n, "" if n == 1 else "s"]

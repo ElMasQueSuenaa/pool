@@ -21,7 +21,7 @@ pool/
 ├─ PLAN.md
 ├─ scenes/      main.tscn (la mesa y el HUD), ball.tscn
 ├─ scripts/     ball.gd, ball.gdshader, table.gd, cue.gd, rules.gd, powers.gd, ai.gd
-├─ tests/       test_break.gd, test_rules.gd (no se exportan a la web)
+├─ tests/       test_break.gd, test_rules.gd, test_powers.gd (no se exportan a la web)
 └─ assets/
    ├─ placeholder/   arte y sonidos CC0 (Kenney, freesound CC0)
    └─ ip/            fan art de Avatar: solo local, git lo ignora
@@ -123,9 +123,12 @@ Con física propia, los poderes de la Fase 3 son simples modificaciones a ese bu
 
 ## Fase 3: Mecánica elemental (lo que diferencia al juego)
 
-Cada jugador elige una nación al empezar. Su poder tiene **1 carga** y se recarga cada **3 turnos propios** (constante ajustable). Antes de tirar se pulsa el botón ⚡ y el poder afecta a la blanca en ese tiro. Al quedar la mesa en reposo, todo vuelve a la normalidad.
+Cada jugador elige una nación al empezar. Su poder tiene **1 carga** y se recarga cada **3 turnos propios** (constante ajustable). Antes de tirar se pulsa el botón **Poder** y el poder afecta a la blanca en ese tiro. Al quedar la mesa en reposo, todo vuelve a la normalidad.
 
-Todo vive en `powers.gd`, un `match` por elemento, separado del arte.
+Todo vive en `powers.gd` (`class_name Powers`, `extends RefCounted`), un `match` por elemento, separado del arte.
+- **Cargas:** `wait[jugador]` son los turnos propios que le faltan; 0 = cargado. Al usar el poder pasa a 3, y baja 1 cada vez que **empieza** un turno de ese jugador, así que vuelve a tenerlo en su tercer turno después de usarlo. Seguir tirando tras embocar no cuenta como turno nuevo.
+- **Botón:** se activa y desactiva antes de tirar, solo en `AIMING` y con carga. Sin emoji: el navegador no tiene fuentes del sistema y el ⚡ saldría como un cuadrado.
+- `table.gd` llama a `start_shot` al tirar, a `end_shot` al quedar en reposo y a `start_turn` cuando cambia el turno.
 
 | Elemento | Efecto | Implementación |
 |---|---|---|
@@ -135,8 +138,14 @@ Todo vive en `powers.gd`, un `match` por elemento, separado del arte.
 | 🌪️ **Aire** | La blanca salta por encima de bolas | Se quita la capa 1 del `collision_mask` durante unos 0.35 s; se vuelve a activar solo cuando no se solapa con ninguna bola (`intersect_shape`) |
 
 - [ ] Implementar **uno a uno**, en este orden: Tierra (una línea) → Fuego → Agua → Aire.
+  - [x] Tierra. Tras un choque de frente la blanca sigue con el 49 % de su velocidad (sin poder, el 2 %). En 20 saques a fuerza máxima con Tierra no hay cruces, pero el solape máximo sube de 13.1 a 19.4 px.
+  - [ ] Fuego
+  - [ ] Agua
+  - [ ] Aire
 - [ ] Después de cada elemento, jugar 5 partidas. Si el poder decide la mayoría de las partidas, o solo mete ruido, ajustar o recortar. **El pool tiene que seguir siendo pool.**
-- [ ] HUD: nación de cada jugador y estado de la carga.
+- [x] Cargas, botón **Poder** (arriba) y HUD con la nación y la carga de cada jugador (abajo).
+- [ ] Elegir nación al empezar. Con un solo poder no hay nada que elegir: los dos juegan con Tierra hasta que exista Fuego.
+- [x] `tests/test_powers.gd` (`godot --headless --fixed-fps 240 -s tests/test_powers.gd`, también en CI): ciclo de cargas y el efecto de Tierra en un tiro recto.
 
 **Hecho cuando:** los cuatro poderes funcionan y una partida con poderes sigue sintiéndose como billar.
 
