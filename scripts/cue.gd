@@ -39,7 +39,7 @@ func _input(event: InputEvent) -> void:
 
 func _draw() -> void:
 	if table.state == Table.State.BALL_IN_HAND:
-		draw_circle(pointer, Ball.RADIUS, Color(1, 1, 1, 0.8 if table.can_place(pointer) else 0.3))
+		draw_circle(pointer, Ball.RADIUS, Color(1, 1, 1, 0.8 if table.can_place(pointer) else 0.3), true, -1, true)
 	elif aiming:
 		var from := table.cue_ball.position
 		draw_line(from, from + _drag() * 3, Color.WHITE, 2)

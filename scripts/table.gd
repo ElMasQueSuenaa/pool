@@ -26,6 +26,13 @@ const FOOT_SPOT := Vector2(W * 0.75, H / 2)
 # La 8 en el centro y una lisa y una rayada en las esquinas de atrás
 const RACK_ORDER := [1, 9, 2, 10, 8, 3, 11, 4, 12, 5, 6, 13, 7, 14, 15]
 const GROUP_NAMES := ["mesa abierta", "lisas", "rayadas"]
+# Solo dibujo: la goma de las bandas va pegada al paño y el resto, hasta FRAME, es madera
+const FRAME := 38.0
+const CUSHION := 14.0
+const FELT := Color("1d7a48")
+const CUSHION_COLOR := Color("16643a")
+const WOOD := Color("6b3b1c")
+const FLOOR := Color("121315")  # igual que el color de fondo de project.godot
 
 enum State { AIMING, ROLLING, BALL_IN_HAND, OVER }
 
@@ -36,6 +43,9 @@ var state := State.AIMING
 var pocketed: Array[int] = []
 var first_hit := -1
 var shot_time := 0.0
+# Degradados del dibujo de la mesa. Tienen que seguir vivos mientras se usen en _draw.
+var _lamp := _radial([Color("2c2822"), FLOOR])
+var _felt_shade := _radial([Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0.28)], [0, 0.55, 1])
 
 
 func _ready() -> void:
@@ -64,11 +74,102 @@ func _ready() -> void:
 	new_game()
 
 
+## Solo se dibuja una vez. La luz viene de una lámpara arriba a la izquierda, como en las bolas.
 func _draw() -> void:
-	draw_rect(Rect2(-RAIL, -RAIL, W + 2 * RAIL, H + 2 * RAIL), Color.SADDLE_BROWN)
-	draw_rect(Rect2(0, 0, W, H), Color.DARK_GREEN)
+	# Suelo con la luz de la lámpara, y la mesa con su sombra
+	draw_texture_rect(_lamp, Rect2(W / 2 - 800, H / 2 - 520, 1600, 1040), false)
+	var wood := StyleBoxFlat.new()
+	wood.bg_color = WOOD
+	wood.set_corner_radius_all(18)
+	wood.set_border_width_all(2)
+	wood.border_color = WOOD.darkened(0.45)
+	wood.shadow_color = Color(0, 0, 0, 0.55)
+	wood.shadow_size = 22
+	wood.shadow_offset = Vector2(6, 10)
+	wood.draw(get_canvas_item(), Rect2(-FRAME, -FRAME, W + 2 * FRAME, H + 2 * FRAME))
+	_draw_grain()
+
+	draw_rect(Rect2(0, 0, W, H), FELT)
+	draw_texture_rect(_felt_shade, Rect2(0, 0, W, H), false)
+	# Línea de salida y los puntos de la blanca y del rack
+	draw_line(Vector2(HEAD_SPOT.x, 0), Vector2(HEAD_SPOT.x, H), Color(1, 1, 1, 0.12), 2)
+	for p in [HEAD_SPOT, FOOT_SPOT]:
+		draw_circle(p, 3, Color(1, 1, 1, 0.3), true, -1, true)
+
+	# El morro de la goma es el borde del rectángulo de colisión, así que choca donde se ve.
+	# Por detrás se alarga hacia la tronera (la boca se estrecha, como en una mesa de verdad).
+	# Esa parte no choca, pero una bola visible tiene el centro en el paño y apenas la pisa.
+	for r: Rect2 in RAILS:
+		var out := Vector2(0, -1) if r.end.y <= 0 else Vector2(0, 1) if r.position.y >= H else Vector2(-1, 0) if r.end.x <= 0 else Vector2(1, 0)
+		var along := Vector2(absf(out.y), absf(out.x))
+		var half: float = r.size.dot(along) / 2
+		var a := r.get_center() - out * RAIL / 2 - along * half  # los dos extremos del morro
+		var b := a + along * half * 2
+		for i in 5:  # sombra de la banda sobre el paño
+			draw_line(a - out * (i + 0.5), b - out * (i + 0.5), Color(0, 0, 0, 0.07 * (5 - i)), 1)
+		draw_colored_polygon([a, b, b + out * CUSHION + along * 10, a + out * CUSHION - along * 10], CUSHION_COLOR)
+		draw_line(a + out, b + out, CUSHION_COLOR.lightened(0.15), 2)
+	draw_rect(Rect2(-CUSHION, -CUSHION, W + 2 * CUSHION, H + 2 * CUSHION), WOOD.darkened(0.5), false, 2)
+
+	# Rombos de nácar: dividen cada banda larga en 8 y cada corta en 4
+	var mid := (FRAME + CUSHION) / 2
+	var diamond := PackedVector2Array([Vector2(0, -4), Vector2(3, 0), Vector2(0, 4), Vector2(-3, 0)])
+	for k in [1, 2, 3, 5, 6, 7]:
+		for y in [-mid, H + mid]:
+			draw_set_transform(Vector2(W * k / 8, y))
+			draw_colored_polygon(diamond, Color("efe6cf"))
+	for k in [1, 2, 3]:
+		for x in [-mid, W + mid]:
+			draw_set_transform(Vector2(x, H * k / 4))
+			draw_colored_polygon(diamond, Color("efe6cf"))
+	draw_set_transform(Vector2.ZERO)
+
+	# Troneras: aro de cuero y agujero, más oscuro hacia dentro. Las del medio, algo hacia fuera.
 	for p: Vector2 in POCKETS:
-		draw_circle(p, CORNER_GAP * 0.8 if p.x != W / 2 else SIDE_GAP, Color.BLACK)
+		var r := CORNER_GAP * 0.8 if p.x != W / 2 else SIDE_GAP
+		var c := p if p.x != W / 2 else p + Vector2(0, -6 if p.y == 0 else 6)
+		draw_circle(c, r + 5, Color("24170f"), true, -1, true)
+		for i in 4:
+			draw_circle(c, r - i * 2, Color("2b2b2b").darkened(0.33 * i), true, -1, true)
+
+
+## Vetas de la madera, siempre las mismas (semilla fija)
+func _draw_grain() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var grain := Color(WOOD.darkened(0.35), 0.5)
+	var strips := [
+		Rect2(-FRAME + 18, -FRAME, W + 2 * FRAME - 36, FRAME - CUSHION),
+		Rect2(-FRAME + 18, H + CUSHION, W + 2 * FRAME - 36, FRAME - CUSHION),
+		Rect2(-FRAME, -CUSHION, FRAME - CUSHION, H + 2 * CUSHION),
+		Rect2(W + CUSHION, -CUSHION, FRAME - CUSHION, H + 2 * CUSHION),
+	]
+	for s: Rect2 in strips:
+		var horizontal := s.size.x > s.size.y
+		var length := s.size.x if horizontal else s.size.y
+		var width := s.size.y if horizontal else s.size.x
+		for line in 6:
+			var across := rng.randf_range(3, width - 3)
+			var phase := rng.randf() * TAU
+			var points := PackedVector2Array()
+			for i in 25:
+				var t := length * i / 24.0
+				var wave := clampf(across + sin(t / 60 + phase) * 2.5, 1, width - 1)
+				points.append(s.position + (Vector2(t, wave) if horizontal else Vector2(wave, t)))
+			draw_polyline(points, grain, 1, true)
+
+
+static func _radial(colors: Array, offsets: Array = [0, 1]) -> GradientTexture2D:
+	var t := GradientTexture2D.new()
+	t.width = 256
+	t.height = 256
+	t.fill = GradientTexture2D.FILL_RADIAL
+	t.fill_from = Vector2(0.5, 0.5)
+	t.fill_to = Vector2(1, 0.5)
+	t.gradient = Gradient.new()
+	t.gradient.offsets = PackedFloat32Array(offsets)
+	t.gradient.colors = PackedColorArray(colors)
+	return t
 
 
 func _physics_process(delta: float) -> void:

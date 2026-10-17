@@ -20,7 +20,7 @@ pool/
 ├─ .github/workflows/pages.yml   exporta y publica en cada push a main
 ├─ PLAN.md
 ├─ scenes/      main.tscn (la mesa y el HUD), ball.tscn
-├─ scripts/     ball.gd, table.gd, cue.gd, rules.gd, powers.gd, ai.gd
+├─ scripts/     ball.gd, ball.gdshader, table.gd, cue.gd, rules.gd, powers.gd, ai.gd
 ├─ tests/       test_break.gd, test_rules.gd (no se exportan a la web)
 └─ assets/
    ├─ placeholder/   arte y sonidos CC0 (Kenney, freesound CC0)
@@ -52,7 +52,7 @@ Cada push a `main` dispara `.github/workflows/pages.yml`: descarga Godot y las p
 
 El mayor riesgo técnico es si la física 2D de Godot aguanta un billar. Esta fase sirve para averiguarlo **antes** de invertir en lo demás.
 
-- [x] `ball.tscn` + `ball.gd`: un `RigidBody2D` con `CircleShape2D`, dibujado con `draw_circle` (lisas de color, rayadas con anillo blanco). Propiedades:
+- [x] `ball.tscn` + `ball.gd`: un `RigidBody2D` con `CircleShape2D`, dibujado con `ball.gdshader`: una esfera con luz, la franja de las rayadas y el número, que giran al rodar. La física no gira las bolas (`lock_rotation`), así que el giro se calcula aparte con lo que avanza cada una. Propiedades:
   - **Sin CCD:** a 240 ticks no cambia nada (100 saques dan exactamente lo mismo con y sin él). A fuerza máxima una bola avanza 12.5 px por tick, menos que su tamaño, y para atravesar una banda de 30 px tendría que saltar unos 54.
   - `lock_rotation = true` y `gravity_scale = 0`
   - `physics_material_override`: `bounce = 0.475`, `friction = 0`. **Godot suma el `bounce` de los dos cuerpos** (con tope 1): bola + bola = 0.95 y bola + banda (0.275) = 0.75. Con 0.95 y 0.75 todos los choques serían perfectamente elásticos.
@@ -60,6 +60,7 @@ El mayor riesgo técnico es si la física 2D de Godot aguanta un billar. Esta fa
   - `contact_monitor = true` y `max_contacts_reported = 4` (para saber a qué bola se golpeó primero)
 - [x] Umbral de parada: en `_integrate_forces`, si `state.linear_velocity.length() < 5`, poner la velocidad a cero. Sin esto las bolas se arrastran eternamente.
 - [x] Mesa en `main.tscn` + `table.gd` (sin `table.tscn` aparte): paño de 1000×500 y las bandas como rectángulos de un `StaticBody2D` que dejan huecos en las 6 troneras. Medidas y huecos son constantes en `table.gd`.
+  Se dibuja todo en `table._draw` (madera, goma, paño, rombos y troneras). La goma de cada banda se pinta sobre su rectángulo de colisión, así que las bolas rebotan donde se ve.
 - [x] Troneras sin `Area2D`: las bandas solo dejan salir del paño por los huecos, así que **si el centro de una bola sale del paño, ha entrado**. Se registra en el tiro, se oculta, se congela y se le quitan las capas de colisión (congelada seguiría chocando).
 - [x] Rack inicial: triángulo de 15 bolas con la 8 en el centro, y la blanca en la línea de salida. Botón **Reiniciar** para volver a colocarlo.
   Para colocar una bola (rack, bola en mano), `place()` le da la posición directamente al motor con `PhysicsServer2D.body_set_state`. Moviendo solo el nodo (aunque sea congelándolo antes), a veces la bola volvía a su sitio anterior en el tick siguiente y el rack se deshacía hasta 73 px.
