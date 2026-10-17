@@ -44,6 +44,18 @@ func _initialize() -> void:
 	p.toggle(0)
 	check("Agua: el botón pasa por izquierda, derecha y desactivado", left and right and not p.armed and p.is_ready(0))
 
+	# Selector: al empezar no se puede tirar, Jugar aplica lo elegido y Reiniciar lo conserva
+	var picker: Control = table.get_node("HUD/Naciones")
+	table.new_game()
+	var choosing := table.state == Table.State.CHOOSING and picker.visible
+	var water: Button = picker.get_node("Rows/Players").get_child(0).get_child(1 + Powers.AVAILABLE.find(Powers.Nation.WATER))
+	water.button_pressed = true
+	picker.get_node("Rows/Jugar").pressed.emit()
+	var chosen := [Powers.Nation.WATER, Powers.Nation.FIRE]
+	check("selector: sale al empezar y Jugar aplica lo elegido", choosing and table.state == Table.State.AIMING and not picker.visible and table.powers.nations == chosen)
+	table.new_game()
+	check("selector: Reiniciar conserva las naciones elegidas", table.powers.nations == chosen and table.get_node("HUD/Poder").text == "Poder: Agua")
+
 	# Tiro recto contra una bola sola. Sin poder la blanca se queda casi parada y la bola sale
 	# con casi toda su velocidad.
 	var plain := await straight_shot(table, -1)
@@ -75,12 +87,22 @@ func _initialize() -> void:
 	await physics_frame
 	table.shoot(Vector2(1000, 0))
 	await physics_frame
-	var jumped := cue.collision_layer == 0 and cue.z_index == 2
-	while table.powers.airborne:
+	var jumped := cue.collision_layer == 0 and cue.z_index == 3
+	while table.powers.airborne and table.shot_time < 2:
 		await physics_frame
 	check("Aire: salta por encima de la 1 sin tocarla (%.2f s en el aire)" % table.shot_time, jumped and table.first_hit < 0 and table.balls[1].linear_velocity == Vector2.ZERO)
 	check("Aire: al bajar vuelve a chocar", cue.collision_layer == 1 and cue.collision_mask == 3 and cue.z_index == 1)
 	await rest(table)
+
+	# La carga baja cuando de verdad vuelve el turno: table.gd llama a start_turn tras cada tiro
+	setup(table, Powers.Nation.EARTH, Vector2(500, 250))
+	await physics_frame
+	table.shoot(Vector2(300, 0))
+	await rest(table)
+	var rival := table.rules.turn
+	table.shoot((table.balls[1].position - cue.position).normalized() * 600)
+	await rest(table)
+	check("la carga baja 1 cuando vuelve el turno (le faltan %d)" % table.powers.wait[0], rival == 1 and table.rules.turn == 0 and table.powers.wait[0] == Powers.RECHARGE_TURNS - 1)
 
 	print("FALLOS: %d" % fails)
 	quit(fails)
@@ -102,8 +124,9 @@ func setup(table: Table, nation: int, ball_1: Vector2) -> void:
 		table.powers.toggle(table.rules.turn)
 
 
+## Espera a que la mesa quede en reposo (con un límite, para que un fallo no cuelgue la prueba)
 func rest(table: Table) -> void:
-	while table.state == Table.State.ROLLING:
+	while table.state == Table.State.ROLLING and table.shot_time < 10:
 		await physics_frame
 
 
@@ -114,7 +137,7 @@ func straight_shot(table: Table, nation: int) -> Array[float]:
 	await physics_frame
 	table.shoot(Vector2(1000, 0))
 	var before := 0.0
-	while table.first_hit < 0:
+	while table.first_hit < 0 and table.shot_time < 2:
 		before = table.cue_ball.linear_velocity.x
 		await physics_frame
 	for i in 8:

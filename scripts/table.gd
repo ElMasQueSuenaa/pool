@@ -212,7 +212,10 @@ func _physics_process(delta: float) -> void:
 func new_game() -> void:
 	rules = Rules.new()
 	powers.end_shot(cue_ball)  # por si se reinicia con un poder en marcha
+	# Cargas nuevas, pero las mismas naciones: son las que el selector muestra marcadas
+	var nations := powers.nations
 	powers = Powers.new()
+	powers.nations = nations
 	rack()
 	state = State.CHOOSING
 	$HUD/Naciones.show()

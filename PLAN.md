@@ -33,7 +33,7 @@ pool/
 
 ## Fase 0: Entorno (medio día)
 
-Cada push a `main` dispara `.github/workflows/pages.yml`: descarga Godot y las plantillas oficiales, pasa las pruebas de `tests/` (si alguna falla, no se publica), exporta el preset **Web** y lo publica en GitHub Pages. En local no hacen falta plantillas de exportación: se juega con F5.
+Cada push a `main` dispara `.github/workflows/pages.yml`: descarga Godot y las plantillas oficiales, pasa las pruebas de `tests/` (si alguna falla, o si la importación da un `SHADER ERROR`, no se publica), exporta el preset **Web** y lo publica en GitHub Pages. En local no hacen falta plantillas de exportación: se juega con F5.
 
 - [x] Instalar Godot (versión estándar, no .NET): `sudo dnf install godot`.
 - [x] Crear el proyecto en la raíz del repo con renderer **Compatibility**.
@@ -81,6 +81,7 @@ El mayor riesgo técnico es si la física 2D de Godot aguanta un billar. Esta fa
     La física va a 240 ticks. Si en el móvil se nota algo raro en los saques, Plan B.
 - [x] La mesa queda en reposo en menos de unos 8 s (unos 5 s en la prueba).
 - [ ] Lo mismo en el navegador del móvil, y que 240 ticks no lo hagan ir lento.
+  En Chrome de PC, con la exportación web y la GPU, va a 61 fps también durante el saque (medido en tamaño PC y emulando un móvil en horizontal con toques). Falta un móvil de verdad, con su CPU.
 - [ ] Tiros suaves: las bolas ruedan de forma natural y no se quedan "pegadas".
 
 **Si falla → Plan B, física propia** (unas 150 líneas, en `table.gd`):
@@ -146,7 +147,7 @@ Todo vive en `powers.gd` (`class_name Powers`, `extends RefCounted`), un `match`
 - [ ] Después de cada elemento, jugar 5 partidas. Si el poder decide la mayoría de las partidas, o solo mete ruido, ajustar o recortar. **El pool tiene que seguir siendo pool.**
 - [x] Cargas, botón **Poder** (arriba) y HUD con la nación y la carga de cada jugador (abajo).
 - [x] Elegir nación al empezar.
-- [x] `tests/test_powers.gd` (`godot --headless --fixed-fps 240 -s tests/test_powers.gd`, también en CI): ciclo de cargas y el efecto de cada poder en un tiro recto.
+- [x] `tests/test_powers.gd` (`godot --headless --fixed-fps 240 -s tests/test_powers.gd`, también en CI): ciclo de cargas, el efecto de cada poder en un tiro recto, el selector (Jugar y Reiniciar) y que la carga baje cuando de verdad vuelve el turno.
 
 **Hecho cuando:** los cuatro poderes funcionan y una partida con poderes sigue sintiéndose como billar.
 

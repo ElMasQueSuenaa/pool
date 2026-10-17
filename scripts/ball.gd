@@ -75,7 +75,8 @@ func _update_orientation() -> void:
 ## Aire: la blanca va por encima de las demás bolas, un poco más grande y con la sombra más lejos.
 ## Solo es dibujo: las capas de colisión las cambia powers.gd.
 func set_airborne(on: bool) -> void:
-	z_index = 2 if on else 1
+	# z 3: así su sombra (un z por debajo) cae encima de las demás bolas (z 1)
+	z_index = 3 if on else 1
 	$Body.scale = Vector2.ONE * (1.25 if on else 1.0)
 	$Shadow.position = Vector2(6, 8) if on else Vector2.ZERO
 

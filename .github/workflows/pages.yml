@@ -37,10 +37,13 @@ jobs:
           unzip -q -j Godot_v$GODOT-stable_export_templates.tpz 'templates/web_nothreads_*' -d $tpl
 
       # Si una prueba falla, no se publica. timeout: un script de prueba que falla a medias
-      # no llega a quit() y Godot se quedaría abierto para siempre
+      # no llega a quit() y Godot se quedaría abierto para siempre.
+      # Un shader con errores solo deja "SHADER ERROR" en la importación y Godot termina bien,
+      # pero en la web las bolas no se dibujarían: también se para ahí.
       - name: Pruebas
         run: |
-          ./Godot_v$GODOT-stable_linux.x86_64 --headless --import
+          ./Godot_v$GODOT-stable_linux.x86_64 --headless --import 2>&1 | tee import.log
+          if grep "SHADER ERROR" import.log; then exit 1; fi
           timeout 120 ./Godot_v$GODOT-stable_linux.x86_64 --headless -s tests/test_rules.gd
           timeout 120 ./Godot_v$GODOT-stable_linux.x86_64 --headless --fixed-fps 240 -s tests/test_powers.gd
           timeout 600 ./Godot_v$GODOT-stable_linux.x86_64 --headless --fixed-fps 240 -s tests/test_break.gd
