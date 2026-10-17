@@ -20,7 +20,7 @@ pool/
 ├─ .github/workflows/pages.yml   exporta y publica en cada push a main
 ├─ PLAN.md
 ├─ scenes/      main.tscn (la mesa y el HUD), ball.tscn
-├─ scripts/     ball.gd, ball.gdshader, table.gd, cue.gd, rules.gd, powers.gd, ai.gd
+├─ scripts/     ball.gd, ball.gdshader, table.gd, cue.gd, rules.gd, powers.gd, nation_picker.gd, ai.gd
 ├─ tests/       test_break.gd, test_rules.gd, test_powers.gd (no se exportan a la web)
 └─ assets/
    ├─ placeholder/   arte y sonidos CC0 (Kenney, freesound CC0)
@@ -128,24 +128,25 @@ Cada jugador elige una nación al empezar. Su poder tiene **1 carga** y se recar
 Todo vive en `powers.gd` (`class_name Powers`, `extends RefCounted`), un `match` por elemento, separado del arte.
 - **Cargas:** `wait[jugador]` son los turnos propios que le faltan; 0 = cargado. Al usar el poder pasa a 3, y baja 1 cada vez que **empieza** un turno de ese jugador, así que vuelve a tenerlo en su tercer turno después de usarlo. Seguir tirando tras embocar no cuenta como turno nuevo.
 - **Botón:** se activa y desactiva antes de tirar, solo en `AIMING` y con carga. Sin emoji: el navegador no tiene fuentes del sistema y el ⚡ saldría como un cuadrado.
-- `table.gd` llama a `start_shot` al tirar, a `end_shot` al quedar en reposo y a `start_turn` cuando cambia el turno.
+- `table.gd` llama a `start_shot` al tirar, a `on_first_hit` en el primer choque de la blanca, a `end_shot` al quedar en reposo y a `start_turn` cuando cambia el turno.
+- **Selector de nación** (`nation_picker.gd`): un panel al empezar cada partida (estado `CHOOSING`, en el que no se puede tirar). Solo salen los poderes ya hechos (`Powers.AVAILABLE`) y recuerda la elección anterior. En la Fase 4 se le pone color y retratos.
 
 | Elemento | Efecto | Implementación |
 |---|---|---|
 | 🪨 **Tierra** | Blanca pesada que atraviesa racimos y casi no se desvía | `mass = 3` durante el tiro; como el tiro fija la velocidad (Fase 1), sale igual de rápida sin más cambios |
 | 💧 **Agua** | La blanca hace curva | El jugador elige el lado con un toggle; se aplica `constant_force` perpendicular a la dirección durante unos 0.5 s y luego se pone a `Vector2.ZERO` |
-| 🔥 **Fuego** | Explosión al primer impacto | En el primer `body_entered` de la blanca con una bola, impulso extra a esa bola en la dirección blanca → bola (×1.5) |
+| 🔥 **Fuego** | Explosión al primer impacto | En el primer `body_entered` de la blanca con una bola, esa bola sale a ×1.5. En ese momento el choque ya está resuelto en el motor, pero el nodo aún tiene `linear_velocity` 0: se lee con `PhysicsServer2D.body_get_state` y se multiplica (ya va en la dirección blanca → bola) |
 | 🌪️ **Aire** | La blanca salta por encima de bolas | Se quita la capa 1 del `collision_mask` durante unos 0.35 s; se vuelve a activar solo cuando no se solapa con ninguna bola (`intersect_shape`) |
 
 - [ ] Implementar **uno a uno**, en este orden: Tierra (una línea) → Fuego → Agua → Aire.
   - [x] Tierra. Tras un choque de frente la blanca sigue con el 49 % de su velocidad (sin poder, el 2 %). En 20 saques a fuerza máxima con Tierra no hay cruces, pero el solape máximo sube de 13.1 a 19.4 px.
-  - [ ] Fuego
+  - [x] Fuego. En un tiro recto la bola golpeada sale al 141 % de la velocidad de la blanca (sin poder, al 94 %). En 20 saques a fuerza máxima con Fuego no hay cruces; solape máximo 19.2 px.
   - [ ] Agua
   - [ ] Aire
 - [ ] Después de cada elemento, jugar 5 partidas. Si el poder decide la mayoría de las partidas, o solo mete ruido, ajustar o recortar. **El pool tiene que seguir siendo pool.**
 - [x] Cargas, botón **Poder** (arriba) y HUD con la nación y la carga de cada jugador (abajo).
-- [ ] Elegir nación al empezar. Con un solo poder no hay nada que elegir: los dos juegan con Tierra hasta que exista Fuego.
-- [x] `tests/test_powers.gd` (`godot --headless --fixed-fps 240 -s tests/test_powers.gd`, también en CI): ciclo de cargas y el efecto de Tierra en un tiro recto.
+- [x] Elegir nación al empezar (por ahora Tierra o Fuego).
+- [x] `tests/test_powers.gd` (`godot --headless --fixed-fps 240 -s tests/test_powers.gd`, también en CI): ciclo de cargas y el efecto de cada poder en un tiro recto.
 
 **Hecho cuando:** los cuatro poderes funcionan y una partida con poderes sigue sintiéndose como billar.
 

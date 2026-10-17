@@ -2,7 +2,8 @@ class_name Table
 extends Node2D
 
 ## Mesa: bandas, troneras, rack, turnos, bola en mano y poderes.
-## Estados: AIMING → ROLLING → (al quedar en reposo se aplican las reglas) → BALL_IN_HAND | AIMING | OVER
+## Estados: CHOOSING (cada jugador elige nación) → AIMING → ROLLING → (al quedar en reposo se
+## aplican las reglas) → BALL_IN_HAND | AIMING | OVER
 ## El paño va de (0, 0) a (W, H); las bandas quedan fuera y dejan huecos en las troneras.
 
 const W := 1000.0
@@ -34,7 +35,7 @@ const CUSHION_COLOR := Color("16643a")
 const WOOD := Color("6b3b1c")
 const FLOOR := Color("121315")  # igual que el color de fondo de project.godot
 
-enum State { AIMING, ROLLING, BALL_IN_HAND, OVER }
+enum State { CHOOSING, AIMING, ROLLING, BALL_IN_HAND, OVER }
 
 var balls: Array[Ball] = []  # balls[n] es la bola número n
 var cue_ball: Ball
@@ -73,6 +74,7 @@ func _ready() -> void:
 	cue_ball.body_entered.connect(_on_cue_ball_hit)
 	$HUD/Reiniciar.pressed.connect(new_game)
 	$HUD/Poder.pressed.connect(_on_power_pressed)
+	$HUD/Naciones.chosen.connect(_on_nations_chosen)
 	new_game()
 
 
@@ -211,6 +213,8 @@ func new_game() -> void:
 	powers.end_shot(cue_ball)  # por si se reinicia con un poder en marcha
 	powers = Powers.new()
 	rack()
+	state = State.CHOOSING
+	$HUD/Naciones.show()
 	_update_hud()
 
 
@@ -254,6 +258,12 @@ func place_cue_ball(pos: Vector2) -> void:
 	_update_hud()
 
 
+func _on_nations_chosen(nations: Array) -> void:
+	powers.nations.assign(nations)
+	state = State.AIMING
+	_update_hud()
+
+
 func _on_power_pressed() -> void:
 	if state == State.AIMING:
 		powers.toggle(rules.turn)
@@ -263,6 +273,7 @@ func _on_power_pressed() -> void:
 func _on_cue_ball_hit(body: Node) -> void:
 	if state == State.ROLLING and first_hit < 0 and body is Ball:
 		first_hit = body.number
+		powers.on_first_hit(body)
 
 
 func _update_hud() -> void:

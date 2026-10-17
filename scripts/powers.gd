@@ -9,10 +9,12 @@ extends RefCounted
 enum Nation { EARTH, FIRE, WATER, AIR }
 
 const NAMES := ["Tierra", "Fuego", "Agua", "Aire"]
+const AVAILABLE := [Nation.EARTH, Nation.FIRE]  # los que ya están hechos, en el orden del selector
 const RECHARGE_TURNS := 3
 const EARTH_MASS := 3.0
+const FIRE_BOOST := 1.5
 
-var nations: Array[int] = [Nation.EARTH, Nation.EARTH]  # todos Tierra hasta que haya otro poder
+var nations: Array[int] = [Nation.EARTH, Nation.FIRE]  # la de cada jugador, se elige al empezar
 var wait: Array[int] = [0, 0]  # turnos propios que le faltan a cada jugador; 0 = cargado
 var armed := false  # el jugador del turno lo ha activado para el próximo tiro
 var active := -1  # nación cuyo efecto está en marcha en este tiro, -1 si ninguna
@@ -43,6 +45,17 @@ func start_shot(player: int, cue_ball: Ball) -> void:
 		Nation.EARTH:
 			# El tiro fija la velocidad, así que sale igual de rápida: solo pesa más al chocar
 			cue_ball.mass = EARTH_MASS
+
+
+## Primer choque de la blanca con una bola en este tiro (table.gd lo llama desde body_entered).
+func on_first_hit(ball: Ball) -> void:
+	match active:
+		Nation.FIRE:
+			# El choque ya se ha resuelto en el motor, pero el nodo aún no lo sabe (su
+			# linear_velocity sigue a 0): se lee la velocidad del motor. Va en la dirección
+			# blanca → bola, así que basta con multiplicarla.
+			var v: Vector2 = PhysicsServer2D.body_get_state(ball.get_rid(), PhysicsServer2D.BODY_STATE_LINEAR_VELOCITY)
+			ball.linear_velocity = v * FIRE_BOOST
 
 
 func end_shot(cue_ball: Ball) -> void:

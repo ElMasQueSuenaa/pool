@@ -17,6 +17,7 @@ func _initialize() -> void:
 	var cue := table.cue_ball
 
 	var p := Powers.new()
+	p.nations.assign([Powers.Nation.EARTH, Powers.Nation.FIRE])
 	check("al empezar los dos tienen la carga", p.is_ready(0) and p.is_ready(1))
 	p.toggle(0)
 	p.toggle(0)
@@ -34,27 +35,34 @@ func _initialize() -> void:
 	p.start_turn(0)
 	check("a los 3 turnos propios vuelve a tener la carga", p.is_ready(0) and p.is_ready(1))
 
-	# Tierra: tiro recto contra una bola sola. Sin poder la blanca se queda casi parada;
-	# con el triple de masa sigue hacia delante a la mitad de velocidad, más o menos.
-	var plain := await straight_shot(table, false)
-	var earth := await straight_shot(table, true)
-	check("Tierra: la blanca sigue tras el choque (%d%% de su velocidad; sin poder, %d%%)" % [int(earth * 100), int(plain * 100)], earth > 0.4 and plain < 0.1)
+	# Tiro recto contra una bola sola. Sin poder la blanca se queda casi parada y la bola sale
+	# con casi toda su velocidad.
+	var plain := await straight_shot(table, -1)
+	check("sin poder: la blanca se para y la bola sale casi igual (%d%% y %d%%)" % [int(plain[0] * 100), int(plain[1] * 100)], plain[0] < 0.1 and plain[1] > 0.9)
+	# Tierra: con el triple de masa la blanca sigue hacia delante a la mitad de velocidad, más o menos
+	var earth := await straight_shot(table, Powers.Nation.EARTH)
+	check("Tierra: la blanca sigue tras el choque (%d%% de su velocidad)" % int(earth[0] * 100), earth[0] > 0.4)
 	check("Tierra: en reposo la blanca vuelve a pesar 1 y el jugador espera la recarga", cue.mass == 1.0 and table.powers.wait[0] == Powers.RECHARGE_TURNS)
+	# Fuego: la bola golpeada sale a 1.5 veces lo normal
+	var fire := await straight_shot(table, Powers.Nation.FIRE)
+	check("Fuego: la bola sale disparada (%d%% de la velocidad de la blanca)" % int(fire[1] * 100), absf(fire[1] / plain[1] - Powers.FIRE_BOOST) < 0.05)
 
 	print("FALLOS: %d" % fails)
 	quit(fails)
 
 
-## La blanca, recta contra la 1 y sin más bolas. Devuelve la velocidad de la blanca justo
-## después del choque, como fracción de la que llevaba justo antes.
-func straight_shot(table: Table, power: bool) -> float:
+## La blanca, recta contra la 1 y sin más bolas, con el poder de esa nación (-1 = sin poder).
+## Devuelve la velocidad de la blanca y la de la 1 justo después del choque, como fracción de la
+## que llevaba la blanca justo antes.
+func straight_shot(table: Table, nation: int) -> Array[float]:
 	table.new_game()
 	for b in table.balls.slice(2):
 		b.pocket()
 	table.cue_ball.place(Vector2(300, 250))
 	table.balls[1].place(Vector2(500, 250))
 	await physics_frame
-	if power:
+	if nation >= 0:
+		table.powers.nations.assign([nation, nation])
 		table.powers.toggle(table.rules.turn)
 	table.shoot(Vector2(1000, 0))
 	var before := 0.0
@@ -63,7 +71,7 @@ func straight_shot(table: Table, power: bool) -> float:
 		await physics_frame
 	for i in 8:
 		await physics_frame
-	var ratio := table.cue_ball.linear_velocity.x / before
+	var after: Array[float] = [table.cue_ball.linear_velocity.x / before, table.balls[1].linear_velocity.x / before]
 	while table.state == Table.State.ROLLING:
 		await physics_frame
-	return ratio
+	return after

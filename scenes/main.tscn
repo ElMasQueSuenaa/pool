@@ -2,6 +2,18 @@
 
 [ext_resource type="Script" path="res://scripts/table.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/cue.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/nation_picker.gd" id="3"]
+
+[sub_resource type="StyleBoxFlat" id="picker_panel"]
+content_margin_left = 24.0
+content_margin_top = 20.0
+content_margin_right = 24.0
+content_margin_bottom = 20.0
+bg_color = Color(0.08, 0.08, 0.09, 0.92)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 
 [node name="Table" type="Node2D"]
 position = Vector2(76, 76)
@@ -60,3 +72,28 @@ offset_right = -8.0
 offset_bottom = 38.0
 grow_horizontal = 0
 text = "Reiniciar"
+
+[node name="Naciones" type="PanelContainer" parent="HUD"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("picker_panel")
+script = ExtResource("3")
+
+[node name="Rows" type="VBoxContainer" parent="HUD/Naciones"]
+theme_override_constants/separation = 14
+
+[node name="Titulo" type="Label" parent="HUD/Naciones/Rows"]
+text = "Elegid nación"
+horizontal_alignment = 1
+
+[node name="Players" type="VBoxContainer" parent="HUD/Naciones/Rows"]
+theme_override_constants/separation = 10
+
+[node name="Jugar" type="Button" parent="HUD/Naciones/Rows"]
+custom_minimum_size = Vector2(0, 44)
+text = "Jugar"
