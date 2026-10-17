@@ -180,6 +180,7 @@ func _physics_process(delta: float) -> void:
 	if state != State.ROLLING:
 		return
 	shot_time += delta
+	powers.tick(delta)
 	# Las bandas solo dejan salir del paño por los huecos: si el centro sale, la bola entró
 	for b in balls:
 		if b.visible and not Rect2(0, 0, W, H).has_point(b.position):
@@ -234,7 +235,7 @@ func shoot(velocity: Vector2) -> void:
 	first_hit = -1
 	shot_time = 0.0
 	state = State.ROLLING
-	powers.start_shot(rules.turn, cue_ball)
+	powers.start_shot(rules.turn, cue_ball, velocity)
 	# Velocidad directa y no impulso: no depende de la masa, así que Tierra solo sube mass
 	cue_ball.linear_velocity = velocity
 	_update_hud()
@@ -292,7 +293,9 @@ func _update_hud() -> void:
 	var p := rules.turn
 	var button: Button = $HUD/Poder
 	var nation: String = Powers.NAMES[powers.nations[p]]
-	if powers.armed:
+	if powers.armed and powers.nations[p] == Powers.Nation.WATER:
+		button.text = "Poder: Agua, curva a la " + ("izquierda" if powers.curve_left else "derecha")
+	elif powers.armed:
 		button.text = "Poder: %s (activo)" % nation
 	elif powers.is_ready(p):
 		button.text = "Poder: " + nation

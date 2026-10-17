@@ -128,24 +128,24 @@ Cada jugador elige una nación al empezar. Su poder tiene **1 carga** y se recar
 Todo vive en `powers.gd` (`class_name Powers`, `extends RefCounted`), un `match` por elemento, separado del arte.
 - **Cargas:** `wait[jugador]` son los turnos propios que le faltan; 0 = cargado. Al usar el poder pasa a 3, y baja 1 cada vez que **empieza** un turno de ese jugador, así que vuelve a tenerlo en su tercer turno después de usarlo. Seguir tirando tras embocar no cuenta como turno nuevo.
 - **Botón:** se activa y desactiva antes de tirar, solo en `AIMING` y con carga. Sin emoji: el navegador no tiene fuentes del sistema y el ⚡ saldría como un cuadrado.
-- `table.gd` llama a `start_shot` al tirar, a `on_first_hit` en el primer choque de la blanca, a `end_shot` al quedar en reposo y a `start_turn` cuando cambia el turno.
+- `table.gd` llama a `start_shot` al tirar, a `tick` en cada tick mientras ruedan, a `on_first_hit` en el primer choque de la blanca, a `end_shot` al quedar en reposo y a `start_turn` cuando cambia el turno.
 - **Selector de nación** (`nation_picker.gd`): un panel al empezar cada partida (estado `CHOOSING`, en el que no se puede tirar). Solo salen los poderes ya hechos (`Powers.AVAILABLE`) y recuerda la elección anterior. En la Fase 4 se le pone color y retratos.
 
 | Elemento | Efecto | Implementación |
 |---|---|---|
 | 🪨 **Tierra** | Blanca pesada que atraviesa racimos y casi no se desvía | `mass = 3` durante el tiro; como el tiro fija la velocidad (Fase 1), sale igual de rápida sin más cambios |
-| 💧 **Agua** | La blanca hace curva | El jugador elige el lado con un toggle; se aplica `constant_force` perpendicular a la dirección durante unos 0.5 s y luego se pone a `Vector2.ZERO` |
+| 💧 **Agua** | La blanca hace curva | El lado se elige con el mismo botón: un toque, curva a la izquierda; otro, a la derecha; otro, desactivado. Se aplica `constant_force` perpendicular a la salida durante 0.5 s y luego se pone a `Vector2.ZERO`. Es proporcional a la velocidad de salida (`WATER_CURVE` = 0.8), así que la curva tiene casi el mismo ángulo con cualquier fuerza. También se quita en el primer choque: la curva sirve para llegar a la bola |
 | 🔥 **Fuego** | Explosión al primer impacto | En el primer `body_entered` de la blanca con una bola, esa bola sale a ×1.5. En ese momento el choque ya está resuelto en el motor, pero el nodo aún tiene `linear_velocity` 0: se lee con `PhysicsServer2D.body_get_state` y se multiplica (ya va en la dirección blanca → bola) |
-| 🌪️ **Aire** | La blanca salta por encima de bolas | Se quita la capa 1 del `collision_mask` durante unos 0.35 s; se vuelve a activar solo cuando no se solapa con ninguna bola (`intersect_shape`) |
+| 🌪️ **Aire** | La blanca salta por encima de bolas | Durante 0.35 s la blanca no tiene capa y su `collision_mask` es solo 2 (bandas). Quitarle la capa 1 de la máscara no basta: dos cuerpos chocan si la máscara de **cualquiera** incluye la capa del otro, y las demás bolas tienen máscara 3. Baja (capa 1, máscara 3) cuando ya no se solapa con ninguna bola (`intersect_shape`). En el aire se dibuja encima de todo, más grande y con la sombra más lejos |
 
-- [ ] Implementar **uno a uno**, en este orden: Tierra (una línea) → Fuego → Agua → Aire.
+- [x] Implementar **uno a uno**, en este orden: Tierra (una línea) → Fuego → Agua → Aire.
   - [x] Tierra. Tras un choque de frente la blanca sigue con el 49 % de su velocidad (sin poder, el 2 %). En 20 saques a fuerza máxima con Tierra no hay cruces, pero el solape máximo sube de 13.1 a 19.4 px.
   - [x] Fuego. En un tiro recto la bola golpeada sale al 141 % de la velocidad de la blanca (sin poder, al 94 %). En 20 saques a fuerza máxima con Fuego no hay cruces; solape máximo 19.2 px.
-  - [ ] Agua
-  - [ ] Aire
+  - [x] Agua. A 1000 px/s se desvía 89 px hacia el lado elegido en los 0.5 s. Saques a fuerza máxima: sin cruces, solape máximo 9.8 px.
+  - [x] Aire. Como dura un tiempo y no una distancia, cuanto más fuerte el tiro, más largo el salto: unos 300 px a 1000 px/s y unos 900 px (casi toda la mesa) a fuerza máxima. Vigilarlo en las partidas de prueba. Saques a fuerza máxima: la blanca pasa por encima del rack y, después de bajar, no atraviesa nada.
 - [ ] Después de cada elemento, jugar 5 partidas. Si el poder decide la mayoría de las partidas, o solo mete ruido, ajustar o recortar. **El pool tiene que seguir siendo pool.**
 - [x] Cargas, botón **Poder** (arriba) y HUD con la nación y la carga de cada jugador (abajo).
-- [x] Elegir nación al empezar (por ahora Tierra o Fuego).
+- [x] Elegir nación al empezar.
 - [x] `tests/test_powers.gd` (`godot --headless --fixed-fps 240 -s tests/test_powers.gd`, también en CI): ciclo de cargas y el efecto de cada poder en un tiro recto.
 
 **Hecho cuando:** los cuatro poderes funcionan y una partida con poderes sigue sintiéndose como billar.
